@@ -1,0 +1,1 @@
+### FFNN to solve the Schrodinger Equation 
