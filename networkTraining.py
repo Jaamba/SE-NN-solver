@@ -34,6 +34,10 @@ class SESolver(nn.Module):
         E = E.unsqueeze(1)
         phi = x[:, 1:]
 
+        # Makes sure that the output function is normalized
+        integral = torch.sqrt(dt * torch.sum(phi**2, dim=1, keepdim=True))
+        phi = phi / integral
+
         return E, phi
     
 # Loss function definition for the network
@@ -51,7 +55,7 @@ pols = 10000
 # batch size
 BATCH_SIZE = 1024
 # Number of epochs
-epoch = 1
+epoch = 3
 
 # Makes sure to be in training mode
 model.train()
