@@ -1,11 +1,7 @@
 import torch
 from torch import optim
-from torch import nn
-import numpy as np
 import network
 import helper
-import torch.nn.functional as F
-import matplotlib.pyplot as plt
 
 # Uses the GPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -16,7 +12,15 @@ model = network.SESolver().to(device)
 
 # Loss function definition for the network
 def criterion(E, phi, V):
-    return torch.mean( (helper.hamiltonian(phi, V, network.dt) - E*phi)**2 )
+    # Calculates the hamiltonian
+    Hphi = helper.hamiltonian(phi, V, network.dt)
+
+    # Minimizing this will make sure that phi is a solution. Only considers inner values
+    mse = torch.mean(
+        (Hphi[:,1:-1] - E*phi[:,1:-1])**2
+    )
+
+    return mse + (torch.mean(E)+0.5)**2 # This way E will be minimum (e.g. groung state)
 
 # Model optimizer to train the model
 optimizer = optim.Adam(model.parameters(), lr=1e-3)

@@ -4,9 +4,9 @@ import torch.nn.functional as F
 import numpy as np
 
 # The set on which the SE will be solved will be like [-A, A]
-A = 30
+A = 10
 # Discretization size of the set
-N = 1024
+N = 512
 t = np.linspace(-A, A, N)
 dt = t[1] - t[0]
 
@@ -18,6 +18,11 @@ class SESolver(nn.Module):
         self.fc2 = nn.Linear(512, 512)
         self.fc3 = nn.Linear(512, N+1)
 
+        # Mask needed to impose phi = 0 at boundaries
+        x = torch.linspace(-A, A, N)
+        mask = 1 - (x / A)**2
+        self.register_buffer("boundary_mask", mask)
+
     def forward(self, x):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
@@ -26,6 +31,9 @@ class SESolver(nn.Module):
         E = x[:, 0]
         E = E.unsqueeze(1)
         phi = x[:, 1:]
+
+        # Imposes phi = 0 at boundaries
+        phi = phi * self.boundary_mask
 
         # Makes sure that the output function is normalized
         integral = torch.sqrt(dt * torch.sum(phi**2, dim=1, keepdim=True))
