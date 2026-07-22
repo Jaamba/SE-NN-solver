@@ -58,3 +58,72 @@ def second_derivative(f, dt):
 # Note that this is whithout constant, so the whole thing is adimensional
 def hamiltonian(f, V, dt):
     return V*f - second_derivative(f, dt) 
+
+# Solves the schrodinger equation using finite differences method
+def solve_schrodinger(V, dt):
+    """
+    Solves
+
+        (-d²/dx² + V) phi = E phi
+
+    using finite differences and diagonalization.
+
+    Parameters
+    ----------
+    V : torch.Tensor
+        Potential of shape (N,) on CPU or CUDA.
+    dt : float
+        Spatial step.
+
+    Returns
+    -------
+    E : torch.Tensor
+        Eigenvalues, shape (N,)
+    phi : torch.Tensor
+        Eigenvectors, shape (N, N).
+        Column i is the eigenfunction corresponding to E[i].
+    """
+
+    device = V.device
+    dtype = V.dtype
+    N = V.numel()
+
+    inv_dt2 = 1.0 / (dt * dt)
+
+    # Main diagonal
+    diag = 2.0 * inv_dt2 + V
+
+    # Off-diagonal
+    off = -inv_dt2 * torch.ones(N - 1, device=device, dtype=dtype)
+
+    # Hamiltonian
+    H = torch.diag(diag)
+    H += torch.diag(off, diagonal=1)
+    H += torch.diag(off, diagonal=-1)
+
+    # Solve H phi = E phi
+    E, phi = torch.linalg.eigh(H)
+
+    # Normalize eigenfunctions so that
+    # sum |phi|² dx = 1
+    norm = torch.sqrt(torch.sum(phi**2, dim=0) * dt)
+    phi = phi / norm
+
+    return E, phi
+
+N = 1000
+t = np.linspace(-10, 10, N)
+dt = t[1] - t[0]
+V = torch.empty(N)
+V[:] = 0
+V[int(40*N/100):int(60*N/100)] = -1
+
+E, phi = solve_schrodinger(V, dt)
+groundState = phi[:, 0].squeeze()
+firstExcited = phi[:, 1].squeeze()
+plt.plot(t, groundState.detach().cpu().numpy())
+plt.plot(t, firstExcited.detach().cpu().numpy())
+plt.plot(t, phi[:, 4].detach().cpu().numpy())
+plt.plot(t, V.detach().cpu().numpy())
+plt.show()
+print(E[2])
