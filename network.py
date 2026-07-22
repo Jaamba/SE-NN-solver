@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+import helper
 
 # The set on which the SE will be solved will be like [-A, A]
 A = 10
@@ -14,9 +15,9 @@ dt = t[1] - t[0]
 class SESolver(nn.Module):
     def __init__(self):
         super().__init__()
-        self.fc1 = nn.Linear(N, 512)
-        self.fc2 = nn.Linear(512, 512)
-        self.fc3 = nn.Linear(512, N+1)
+        self.fc1 = nn.Linear(N, 1024)
+        self.fc2 = nn.Linear(1024, 1024)
+        self.fc3 = nn.Linear(1024, N)
 
         # Mask needed to impose phi = 0 at boundaries
         x = torch.linspace(-A, A, N)
@@ -24,13 +25,11 @@ class SESolver(nn.Module):
         self.register_buffer("boundary_mask", mask)
 
     def forward(self, x):
+        V = x
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
-        
-        E = x[:, 0]
-        E = E.unsqueeze(1)
-        phi = x[:, 1:]
+        phi = x
 
         # Imposes phi = 0 at boundaries
         phi = phi * self.boundary_mask
@@ -39,4 +38,8 @@ class SESolver(nn.Module):
         integral = torch.sqrt(dt * torch.sum(phi**2, dim=1, keepdim=True))
         phi = phi / integral
 
-        return E, phi
+        # Calculates E based on phi using E = <phi|H|phi>
+        Hphi = helper.hamiltonian(phi, V, dt)
+        E = dt * torch.sum(phi * Hphi, dim=1, keepdim=True)
+
+        return E, phi, Hphi
