@@ -59,71 +59,80 @@ def second_derivative(f, dt):
 def hamiltonian(f, V, dt):
     return V*f - second_derivative(f, dt) 
 
-# Solves the schrodinger equation using finite differences method
-def solve_schrodinger(V, dt):
+def solve_schrodinger(V, dt, n):
     """
     Solves
 
         (-d²/dx² + V) phi = E phi
 
-    using finite differences and diagonalization.
+    using finite differences.
 
     Parameters
     ----------
     V : torch.Tensor
-        Potential of shape (N,) on CPU or CUDA.
+        Shape (M, N) representing batch of potentials.
+
     dt : float
         Spatial step.
 
+    n : integer
+        Energy level
+
     Returns
-    -------
-    E : torch.Tensor
-        Eigenvalues, shape (N,)
-    phi : torch.Tensor
-        Eigenvectors, shape (N, N).
-        Column i is the eigenfunction corresponding to E[i].
+        E   : (M, 1)
+        phi : (M, N)
     """
 
     device = V.device
     dtype = V.dtype
-    N = V.numel()
 
     inv_dt2 = 1.0 / (dt * dt)
 
-    # Main diagonal
-    diag = 2.0 * inv_dt2 + V
+    # Checks that V has shape (M, N)
+    if V.ndim == 2:
+        M, N = V.shape
 
-    # Off-diagonal
-    off = -inv_dt2 * torch.ones(N - 1, device=device, dtype=dtype)
+        # Creates the batched hamiltonian matrix
+        diag = 2.0 * inv_dt2 + V
+        off = -inv_dt2 * torch.ones(N - 1, device=device, dtype=dtype)
 
-    # Hamiltonian
-    H = torch.diag(diag)
-    H += torch.diag(off, diagonal=1)
-    H += torch.diag(off, diagonal=-1)
+        H = torch.diag_embed(diag)
 
-    # Solve H phi = E phi
-    E, phi = torch.linalg.eigh(H)
+        idx = torch.arange(N - 1, device=device)
+        H[:, idx, idx + 1] = off
+        H[:, idx + 1, idx] = off
 
-    # Normalize eigenfunctions so that
-    # sum |phi|² dx = 1
-    norm = torch.sqrt(torch.sum(phi**2, dim=0) * dt)
-    phi = phi / norm
+        # Diagonalization
+        E, phi = torch.linalg.eigh(H)
 
-    return E, phi
+        # Returns the n-th state
+        E = E[:, n:n+1]
+        phi = phi[:, :, n]
 
-N = 1000
-t = np.linspace(-10, 10, N)
-dt = t[1] - t[0]
-V = torch.empty(N)
-V[:] = 0
-V[int(40*N/100):int(60*N/100)] = -1
+        # Normalizes the result
+        norm = torch.sqrt(torch.sum(phi**2, dim=1, keepdim=True) * dt)
+        phi = phi / norm
 
-E, phi = solve_schrodinger(V, dt)
-groundState = phi[:, 0].squeeze()
-firstExcited = phi[:, 1].squeeze()
-plt.plot(t, groundState.detach().cpu().numpy())
-plt.plot(t, firstExcited.detach().cpu().numpy())
-plt.plot(t, phi[:, 4].detach().cpu().numpy())
-plt.plot(t, V.detach().cpu().numpy())
-plt.show()
-print(E[2])
+        return E, phi
+
+    else:
+        raise ValueError("V must have shape (N,) or (M, N)")
+
+# N = 1000
+# t = np.linspace(-10, 10, N)
+# dt = t[1] - t[0]
+# V = torch.empty(N)
+# V[:] = 0
+# V[int(40*N/100):int(60*N/100)] = -1
+# V = V.unsqueeze(0)
+# V = random_function(2, N, device="cpu")
+
+# E0, phi0 = solve_schrodinger(V, dt, 0)
+# E1, phi1 = solve_schrodinger(V, dt, 1)
+# plt.plot(t, phi0[0].squeeze().detach().cpu().numpy())
+# plt.plot(t, phi0[1].squeeze().detach().cpu().numpy())
+# plt.plot(t, V[0].squeeze().detach().cpu().numpy())
+# plt.plot(t, V[1].squeeze().detach().cpu().numpy())
+# plt.show()
+# print("Ground state = " + str(E0.squeeze().item()))
+# print("First excited = " + str(E1.squeeze().item()))
