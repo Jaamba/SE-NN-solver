@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch.nn.functional as F
 import torch
+import helper
 import network
 
 # Generates a batch of random torch tensors representing continous functions.
@@ -133,18 +134,61 @@ def generate_training_set( filename, device="cuda"):
         # Updates the dataset with the current batch
         dataset[b] = batch.cpu()
 
-        # Prints current training progress
+        # Prints current progress
         if b % (NUM_BATCHES/100) == 0:
             print(f"Current progress: {b/NUM_BATCHES*100}%", end="\r") 
 
     torch.save(dataset, filename)
-
     print(f"\nDataset saved in '{filename}'")
+
+def generate_energy_set( input_filename, output_filename, device = "cuda", n = 0):
+
+    # Loads the training dataset
+    print("Loading training set...")
+    trainingset = torch.load( input_filename, map_location="cpu")
+    print("Training set loaded correctly")
+
+    # Generates an empty dataset
+    dataset = torch.empty(
+        NUM_BATCHES,
+        BATCH_SIZE,
+        1,
+        dtype=torch.float32
+    )
+
+    # For each batch in the training set, finds the energy of the n-th state
+    for i, batch in enumerate(trainingset):
+
+        # Moves the batch to the used device
+        batch = batch.to(device, non_blocking=True)
+
+        # Founds the n-th energy level for the current batch
+        with torch.no_grad():
+            E, _ = helper.solve_schrodinger(batch, network.dt, n)
+
+        # Loads 
+        dataset[i] = E.cpu()
+
+        # Prints current progress
+        if i % (NUM_BATCHES/100) == 0:
+            print(f"Current progress: {i/NUM_BATCHES*100}%", end="\r") 
+
+    # Saves the dataset
+    torch.save(dataset, output_filename)
+    print(f"\nDataset saved in '{output_filename}'")
+
 
 ### DATASET INFO
 BATCH_SIZE = 512
 NUM_BATCHES = 10000
 N = network.N
 
-# Generates the training set
-generate_training_set('trainingset.pt', device="cuda")
+
+if __name__ == "__main__":
+    # Generates the training set
+    print("Generating training set:")
+    generate_training_set('trainingset.pt', device="cuda")
+
+    # Generates the ground energy set
+    print("Generating energy set:")
+    generate_energy_set( 'trainingset.pt', 'ground_energy_set.pt', n=0)
