@@ -17,26 +17,38 @@ class SESolver(nn.Module):
         super().__init__()
 
         self.conv = nn.Sequential(
-            nn.Conv1d(1, 32, kernel_size=9, padding=4),
+            nn.Conv1d(2, 64, kernel_size=9, padding=4),
             nn.ReLU(),
 
-            nn.Conv1d(32, 64, kernel_size=9, padding=4),
+            nn.Conv1d(64, 128, kernel_size=9, padding=4),
             nn.ReLU(),
 
-            nn.Conv1d(64, 64, kernel_size=9, padding=4),
+            nn.Conv1d(128, 128, kernel_size=9, padding=4),
+            nn.ReLU(),
+
+            nn.Conv1d(128, 64, kernel_size=9, padding=4),
             nn.ReLU(),
 
             nn.Conv1d(64, 1, kernel_size=9, padding=4)
         )
 
         # Mask needed to impose phi = 0 at boundaries
-        x = torch.linspace(-A, A, N)
-        mask = 1 - (x / A)**2
+        mask = torch.ones(N)
+        mask[0]=0
+        mask[-1]=0
         self.register_buffer("boundary_mask", mask)
 
     def forward(self, V):
 
-        x = V.unsqueeze(1)
+        # Positional chanel for the network
+        pos = torch.linspace(-A,A,N,device=V.device)
+        pos = pos.expand(V.shape[0],1,N)
+
+        x = torch.cat(
+            [V.unsqueeze(1), pos],
+            dim=1
+        )
+
         phi = self.conv(x)
         phi = phi.squeeze(1)
 
@@ -51,4 +63,4 @@ class SESolver(nn.Module):
         Hphi = helper.hamiltonian(phi, V, dt)
         E = dt * torch.sum(phi * Hphi, dim=1, keepdim=True)
 
-        return E, phi, Hphi
+        return E, phi
