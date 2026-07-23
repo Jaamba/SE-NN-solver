@@ -18,13 +18,17 @@ def criterion(E, phi, Hphi, V):
         (Hphi[:,1:-1] - E*phi[:,1:-1])**2
     )
 
-    return mse + 100*torch.mean(E)
+    # Rewards the solver if it selected energies close to the ground state
+    Eground, _ = helper.solve_schrodinger(V, network.dt, 0)
+    groundLoss = torch.mean( (E - Eground)**2 )
+
+    return mse + groundLoss
 
 # Model optimizer to train the model
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
 # Number of batches to generate
-pols = 1000
+pols = 100
 # batch size
 BATCH_SIZE = 512
 # Number of epochs
@@ -39,7 +43,7 @@ for i in range(pols):
         print("Current progress:", i/pols*100, "%") 
 
     # Input values for the network
-    input = helper.random_function(BATCH_SIZE, network.N, device=device)
+    input = helper.random_function(BATCH_SIZE, network.N, device=device, sigma=32)
 
     for j in range(epoch):
         optimizer.zero_grad()
@@ -49,7 +53,7 @@ for i in range(pols):
 
         # Calculates the loss
         loss = criterion(E, phi, Hphi, input)
-        
+
         # Bacward press
         loss.backward()
         optimizer.step()
