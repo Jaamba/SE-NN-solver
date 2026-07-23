@@ -110,7 +110,7 @@ def generate_training_set( filename, device="cuda"):
 
         # Generates three batches of different type
         poly   = random_polynomials(BATCH_SIZE, N, device=device)
-        smooth = random_smooth(BATCH_SIZE, N, device=device)
+        smooth = random_smooth(BATCH_SIZE, N, device=device, sigma=32)
         wells  = random_gaussian_wells(BATCH_SIZE, N, device=device)
 
         # Generates a batch three random coefficients between 0 and 1
@@ -164,7 +164,7 @@ def generate_energy_set( input_filename, output_filename, device = "cuda", n = 0
 
         # Founds the n-th energy level for the current batch
         with torch.no_grad():
-            E, _ = helper.solve_schrodinger(batch, network.dt, n)
+            E = helper.solve_energy(batch, network.dt, n)
 
         # Loads 
         dataset[i] = E.cpu()
@@ -180,15 +180,21 @@ def generate_energy_set( input_filename, output_filename, device = "cuda", n = 0
 
 ### DATASET INFO
 BATCH_SIZE = 512
-NUM_BATCHES = 10000
+NUM_BATCHES = 1000
 N = network.N
 
 
 if __name__ == "__main__":
+
+    torch.backends.cuda.matmul.allow_tf32 = True
+
     # Generates the training set
-    print("Generating training set:")
-    generate_training_set('trainingset.pt', device="cuda")
+    if input("Generate training set? (y/N)").lower() == "y":
+        print("Generating training set:")
+        generate_training_set('trainingset.pt', device="cuda")
+        print()
 
     # Generates the ground energy set
-    print("Generating energy set:")
-    generate_energy_set( 'trainingset.pt', 'ground_energy_set.pt', n=0)
+    if input("Generate Energy set? (y/N)").lower() == "y":
+        print("Generating energy set:")
+        generate_energy_set( 'trainingset.pt', 'ground_energy_set.pt', n=0)

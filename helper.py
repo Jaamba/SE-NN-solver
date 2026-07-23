@@ -90,6 +90,59 @@ def solve_schrodinger(V, dt, n):
     else:
         raise ValueError("V must have shape (N,) or (M, N)")
 
+def solve_energy(V, dt, n):
+    """
+    Computes only the n-th energy eigenvalue of
+
+        (-d²/dx² + V) phi = E phi
+
+    using finite differences.
+
+    Parameters
+    ----------
+    V : torch.Tensor
+        Shape (M, N), batch of potentials.
+
+    dt : float
+        Spatial step.
+
+    n : int
+        Energy level (0 = ground state).
+
+    Returns
+    -------
+    E : torch.Tensor
+        Shape (M, 1), n-th eigenvalue for each potential.
+    """
+
+    if V.ndim != 2:
+        raise ValueError("V must have shape (M, N)")
+
+    device = V.device
+    dtype = V.dtype
+
+    M, N = V.shape
+
+    inv_dt2 = 1.0 / (dt * dt)
+
+    # Diagonal
+    diag = 2.0 * inv_dt2 + V
+
+    # Build Hamiltonian batch
+    H = torch.diag_embed(diag)
+
+    off = -inv_dt2 * torch.ones(N - 1, device=device, dtype=dtype)
+
+    idx = torch.arange(N - 1, device=device)
+    H[:, idx, idx + 1] = off
+    H[:, idx + 1, idx] = off
+
+    # Only eigenvalues (faster than eigh)
+    E = torch.linalg.eigvalsh(H)
+
+    # n-th eigenvalue
+    return E[:, n:n+1]
+
 # N = 1000
 # t = np.linspace(-10, 10, N)
 # dt = t[1] - t[0]
