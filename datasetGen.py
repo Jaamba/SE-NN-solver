@@ -96,7 +96,10 @@ def random_gaussian_wells( M, N, max_wells=4, well_steep = 2, device="cuda"):
 
 # Generates and saves a dataset of functions for training. This is a tensor of
 # shape (num_batches, batch_size, N)
-def generate_training_set( filename, device="cuda"):
+# Types of datasets can be: "mixed", "smooth", "well", "poly"
+def generate_training_set( filename, device="cuda", type="mixed"):
+
+    print('Generating %s type dataset' % type)
 
     # Generates an empy dataset
     dataset = torch.empty(
@@ -111,8 +114,25 @@ def generate_training_set( filename, device="cuda"):
         # Generates three batches of different type
         poly   = random_polynomials(BATCH_SIZE, N, device=device)
         smooth = random_smooth(BATCH_SIZE, N, device=device, sigma=32)
-        wells  = random_gaussian_wells(BATCH_SIZE, N, device=device)
+        wells  = random_gaussian_wells(BATCH_SIZE, N, device=device, max_wells=2)
 
+        # Prints current progress
+        print(f"\rGenerating dataset: {b+1}/{NUM_BATCHES} ({100*b/NUM_BATCHES:.1f}%)", end="", flush=True)
+
+        # Creates the dataset for non mixed types
+        if(type == "well"):
+            dataset[b] = wells.cpu()
+            continue
+        elif(type == "smooth"):
+            dataset[b] = smooth.cpu()
+            continue
+        elif(type == "poly"):
+            dataset[b] = poly.cpu()
+            continue
+        elif(type != "mixed"):
+            raise ValueError("type %s is not an available dataset type" % type)
+
+        # Creates the dataset for mixed types
         # Generates a batch three random coefficients between 0 and 1
         weights = torch.rand(BATCH_SIZE, 3, device=device)
 
@@ -134,13 +154,11 @@ def generate_training_set( filename, device="cuda"):
         # Updates the dataset with the current batch
         dataset[b] = batch.cpu()
 
-        # Prints current progress
-        if b % (NUM_BATCHES/100) == 0:
-            print(f"Current progress: {b/NUM_BATCHES*100}%", end="\r") 
-
     torch.save(dataset, filename)
     print(f"\nDataset saved in '{filename}'")
 
+# Generates a dataset containing the n-th energies for the potentials
+# stored in input_filename
 def generate_energy_set( input_filename, output_filename, device = "cuda", n = 0):
 
     # Loads the training dataset
@@ -177,10 +195,9 @@ def generate_energy_set( input_filename, output_filename, device = "cuda", n = 0
     torch.save(dataset, output_filename)
     print(f"\nDataset saved in '{output_filename}'")
 
-
 ### DATASET INFO
 BATCH_SIZE = 512
-NUM_BATCHES = 1000
+NUM_BATCHES = 5000
 N = network.N
 
 
@@ -190,8 +207,9 @@ if __name__ == "__main__":
 
     # Generates the training set
     if input("Generate training set? (y/N)").lower() == "y":
+        type = input("Choose dataset type: (mixed/smooth/well/poly) ")
         print("Generating training set:")
-        generate_training_set('trainingset.pt', device="cuda")
+        generate_training_set('trainingset.pt', device="cuda", type=type)
         print()
 
     # Generates the ground energy set
