@@ -188,12 +188,28 @@ def generate_energy_set( input_filename, output_filename, device = "cuda", n = 0
         dataset[i] = E.cpu()
 
         # Prints current progress
-        if i % (NUM_BATCHES/100) == 0:
-            print(f"Current progress: {i/NUM_BATCHES*100}%", end="\r") 
+        print(f"\rGenerating dataset: {i+1}/{NUM_BATCHES} ({100*i/NUM_BATCHES:.1f}%)", end="", flush=True)
 
     # Saves the dataset
     torch.save(dataset, output_filename)
     print(f"\nDataset saved in '{output_filename}'")
+
+# plots the function at position (num_batch, num_fun) in a dataset
+def view_dataset(input_filename, index):
+
+    # Loads the training dataset
+    print("Loading training set...")
+    trainingset = torch.load( input_filename, map_location="cpu")
+    print("Training set loaded correctly")
+
+    if(index[0] > NUM_BATCHES or index[1] > BATCH_SIZE):
+        raise ValueError("index out of range")
+
+    f = trainingset[index[0], index[1], :].detach().cpu().numpy()
+    t = np.linspace(-network.A, network.A, N)
+
+    plt.plot(t, f)
+    plt.show()
 
 ### DATASET INFO
 BATCH_SIZE = 512
@@ -211,6 +227,7 @@ if __name__ == "__main__":
         print("Generating training set:")
         generate_training_set('trainingset.pt', device="cuda", type=type)
         print()
+
 
     # Generates the ground energy set
     if input("Generate Energy set? (y/N)").lower() == "y":
