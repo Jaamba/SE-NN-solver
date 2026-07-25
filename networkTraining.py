@@ -25,7 +25,7 @@ def criterion(E):
 optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
 # Number of epochs
-epoch = 1
+epoch = 5
 
 # Loads the dataset
 print("Loading dataset...")
@@ -42,19 +42,15 @@ NUM_BATCHES = datasetGen.NUM_BATCHES
 
 # Makes sure to be in training mode
 model.train()
-for i, batch in enumerate(dataset):
-
-    # Moves the batches to the used device
-    batch = batch.to(device, non_blocking=True)
-
-    # Prints current training progress
-    print(f"\rTraining network: {i+1}/{NUM_BATCHES} ({100*i/NUM_BATCHES:.1f}%)", end="", flush=True)
-
-    for j in range(epoch):
+for j in range(epoch):
+    for i, batch in enumerate(dataset):
         optimizer.zero_grad()
 
+        # Moves the batches to the used device
+        batch = batch.to(device, non_blocking=True)
+
         # Forward press
-        E, phi, Hphi = model(batch)
+        E, phi = model(batch)
 
         # Calculates the loss
         loss = criterion(E)
@@ -62,7 +58,15 @@ for i, batch in enumerate(dataset):
         # Bacward press
         loss.backward()
         optimizer.step()
-print()
+
+        # Prints current progress
+        print(
+            f"\rTraining network: Epoch {j+1}/{epoch}; "
+            f"Batch {i+1}/{NUM_BATCHES}; "
+            f"Total progress: {100*(j*NUM_BATCHES + i + 1)/(NUM_BATCHES*epoch):.1f}%",
+            end="",
+            flush=True,
+        )
 
 # Saves the trained model
 torch.save(model.state_dict(), 'checkpoint.pth')
