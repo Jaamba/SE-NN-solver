@@ -12,20 +12,17 @@ print("Using device: " + str(device))
 # Build the network
 model = network.SESolver().to(device)
 
+# Asks to load previously trained network  if available
+if(input("Do you want to load previously trained network? (y/N)").lower() == "y"):
+    state_dict = torch.load('checkpoint.pth')
+    model.load_state_dict(state_dict)
+
 # Loss function definition for the network
-def criterion(E, phi, Hphi, V, Ebatch):
-    # Minimizing this will make sure that phi is a solution. Only considers inner values
-    mse = torch.mean(
-        (Hphi[:,1:-1] - Ebatch*phi[:,1:-1])**2
-    )
-
-    # Rewards the solver if it selected energies close to the ground state
-    groundLoss = torch.mean( (E - Ebatch)**2 )
-
-    return mse + groundLoss
+def criterion(E):
+    return torch.mean(E)
 
 # Model optimizer to train the model
-optimizer = optim.Adam(model.parameters(), lr=1e-3)
+optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
 # Number of epochs
 epoch = 1
@@ -36,23 +33,22 @@ dataset = torch.load( "trainingset.pt", map_location="cpu")
 print("Dataset loaded corretctly")
 
 # Loads the Energy set
-print("Loading energy set...")
-Eset = torch.load( "ground_energy_set.pt", map_location="cpu")
+# print("Loading energy set...")
+# Eset = torch.load( "ground_energy_set.pt", map_location="cpu")
+# print("Energy set loaded correctly")
 
 BATCH_SIZE = datasetGen.BATCH_SIZE
 NUM_BATCHES = datasetGen.NUM_BATCHES
 
 # Makes sure to be in training mode
 model.train()
-for i, (batch, Ebatch) in enumerate(zip(dataset, Eset)):
+for i, batch in enumerate(dataset):
 
-    # Moves the batch to the used device
+    # Moves the batches to the used device
     batch = batch.to(device, non_blocking=True)
-    Ebatch = Ebatch.to(device, non_blocking=True)
 
     # Prints current training progress
-    if i % (NUM_BATCHES/100) == 0:
-        print(f"Current progress: {i/NUM_BATCHES*100}%", end="\r") 
+    print(f"\rTraining network: {i+1}/{NUM_BATCHES} ({100*i/NUM_BATCHES:.1f}%)", end="", flush=True)
 
     for j in range(epoch):
         optimizer.zero_grad()
@@ -61,7 +57,7 @@ for i, (batch, Ebatch) in enumerate(zip(dataset, Eset)):
         E, phi, Hphi = model(batch)
 
         # Calculates the loss
-        loss = criterion(E, phi, Hphi, batch, Ebatch)
+        loss = criterion(E)
 
         # Bacward press
         loss.backward()
