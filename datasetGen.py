@@ -211,9 +211,15 @@ def view_dataset(input_filename, index):
     plt.plot(t, f)
     plt.show()
 
+# Shuffles all the functions inside a dataaset
+def shuffleDataset(dataset):
+    dataset = dataset.reshape(-1, N)
+    dataset = dataset[torch.randperm(dataset.size(0))]
+    dataset = dataset.reshape(NUM_BATCHES, BATCH_SIZE, N)
+
 ### DATASET INFO
 BATCH_SIZE = 512
-NUM_BATCHES = 5000
+NUM_BATCHES = 1000
 N = network.N
 
 
@@ -227,7 +233,6 @@ if __name__ == "__main__":
         print("Generating training set:")
         generate_training_set('trainingset.pt', device="cuda", type=type)
         print()
-
 
     # Generates the ground energy set
     if input("Generate Energy set? (y/N)").lower() == "y":
