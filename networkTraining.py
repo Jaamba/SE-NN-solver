@@ -3,6 +3,7 @@ from torch import optim
 import network
 import helper
 import datasetGen
+import matplotlib.pyplot as plt
 import torch.nn.functional as F
 
 # Uses the GPU
@@ -32,17 +33,21 @@ print("Loading dataset...")
 dataset = torch.load( "trainingset.pt", map_location="cpu")
 print("Dataset loaded corretctly")
 
-# Loads the Energy set
-# print("Loading energy set...")
-# Eset = torch.load( "ground_energy_set.pt", map_location="cpu")
-# print("Energy set loaded correctly")
-
+# Imports information from datasetGen
 BATCH_SIZE = datasetGen.BATCH_SIZE
 NUM_BATCHES = datasetGen.NUM_BATCHES
+
+# Losses for each epoch
+train_losses = []
 
 # Makes sure to be in training mode
 model.train()
 for j in range(epoch):
+
+    # Shuffles the dataset
+    datasetGen.shuffleDataset(dataset)
+    running_loss = 0
+
     for i, batch in enumerate(dataset):
         optimizer.zero_grad()
 
@@ -54,6 +59,7 @@ for j in range(epoch):
 
         # Calculates the loss
         loss = criterion(E)
+        running_loss += loss.item()
 
         # Bacward press
         loss.backward()
@@ -67,6 +73,14 @@ for j in range(epoch):
             end="",
             flush=True,
         )
+    else:
+        train_losses.append(running_loss/NUM_BATCHES)
+print()
 
 # Saves the trained model
 torch.save(model.state_dict(), 'checkpoint.pth')
+
+# Prints information about the training progress
+plt.plot(train_losses, label="training loss")
+plt.legend()
+plt.show()
