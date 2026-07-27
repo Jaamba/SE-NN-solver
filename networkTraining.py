@@ -11,7 +11,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using device: " + str(device))
 
 # Build the network
-model = network.SESolver().to(device)
+model = network.FourierNet().to(device)
 
 # Asks to load previously trained network  if available
 if(input("Do you want to load previously trained network? (y/N)").lower() == "y"):
@@ -26,7 +26,7 @@ def criterion(E):
 optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
 # Number of epochs
-epoch = 5
+epoch = 15
 
 # Loads the dataset
 print("Loading dataset...")
