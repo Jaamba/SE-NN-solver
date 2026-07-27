@@ -143,6 +143,9 @@ def solve_energy(V, dt, n):
     # n-th eigenvalue
     return E[:, n:n+1]
 
+if "__name__" == "__main__":
+    t = torch.arange(5)
+
 # N = 1000
 # t = np.linspace(-10, 10, N)
 # dt = t[1] - t[0]

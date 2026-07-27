@@ -68,7 +68,7 @@ class SESolver(nn.Module):
 # Different architecture intended for operating on fourier decomposition
 # of the input
 class FourierNet(nn.Module):
-    def __init__(self, modes=128):
+    def __init__(self, modes=256):
         super().__init__()
 
         # Modes to do the decomposition on
@@ -126,4 +126,4 @@ class FourierNet(nn.Module):
         Hphi = helper.hamiltonian(phi, x, dt)
         E = dt * torch.sum(phi * Hphi, dim=1, keepdim=True)
 
-        return E, phi
+        return E, phi, Hphi

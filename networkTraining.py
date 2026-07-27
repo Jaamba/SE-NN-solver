@@ -19,8 +19,12 @@ if(input("Do you want to load previously trained network? (y/N)").lower() == "y"
     model.load_state_dict(state_dict)
 
 # Loss function definition for the network
-def criterion(E):
-    return torch.mean(E)
+def criterion(E, phi, Hphi):
+    residual = torch.mean(
+        (Hphi-E*phi)**2
+    )
+
+    return torch.mean(E) + 0.1*residual
 
 # Model optimizer to train the model
 optimizer = optim.Adam(model.parameters(), lr=1e-4)
@@ -55,10 +59,10 @@ for j in range(epoch):
         batch = batch.to(device, non_blocking=True)
 
         # Forward press
-        E, phi = model(batch)
+        E, phi, Hphi = model(batch)
 
         # Calculates the loss
-        loss = criterion(E)
+        loss = criterion(E, phi, Hphi)
         running_loss += loss.item()
 
         # Bacward press
