@@ -142,25 +142,3 @@ def solve_energy(V, dt, n):
 
     # n-th eigenvalue
     return E[:, n:n+1]
-
-if "__name__" == "__main__":
-    t = torch.arange(5)
-
-# N = 1000
-# t = np.linspace(-10, 10, N)
-# dt = t[1] - t[0]
-# V = torch.empty(N)
-# V[:] = 0
-# V[int(40*N/100):int(60*N/100)] = -1
-# V = V.unsqueeze(0)
-# V = random_function(2, N, device="cpu")
-
-# E0, phi0 = solve_schrodinger(V, dt, 0)
-# E1, phi1 = solve_schrodinger(V, dt, 1)
-# plt.plot(t, phi0[0].squeeze().detach().cpu().numpy())
-# plt.plot(t, phi0[1].squeeze().detach().cpu().numpy())
-# plt.plot(t, V[0].squeeze().detach().cpu().numpy())
-# plt.plot(t, V[1].squeeze().detach().cpu().numpy())
-# plt.show()
-# print("Ground state = " + str(E0.squeeze().item()))
-# print("First excited = " + str(E1.squeeze().item()))

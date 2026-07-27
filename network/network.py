@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-import helper
+import network.helper as helper
 
 # The set on which the SE will be solved will be like [-A, A]
 A = 10

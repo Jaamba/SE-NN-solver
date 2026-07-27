@@ -1,8 +1,8 @@
 import torch
 from torch import optim
 import network
-import helper
-import datasetGen
+import network.helper as helper
+import data.datasetGen as datasetGen
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
 

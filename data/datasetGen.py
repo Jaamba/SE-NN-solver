@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch.nn.functional as F
 import torch
-import helper
+import network.helper as helper
 import network
 
 # Generates a batch of random torch tensors representing continous functions.
