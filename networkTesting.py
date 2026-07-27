@@ -2,8 +2,8 @@ import torch
 import network
 import matplotlib.pyplot as plt
 import numpy as np
-import helper
-import datasetGen
+import network.helper as helper
+import network.dataset as dataset
 
 # Loads the model from the file
 model = network.FourierNet()
@@ -21,7 +21,7 @@ V = torch.empty(N)
 V[:] = 0
 V[int(40*N/100):int(60*N/100)] = -1
 V = V.unsqueeze(0)
-V = datasetGen.random_gaussian_wells(1, N, max_wells=2, device="cpu")
+V = dataset.random_gaussian_wells(1, N, max_wells=2, device="cpu")
 E, phi, _ = model(V)
 Eteor, phiTeor = helper.solve_schrodinger(V, dt, 0)
 Eteor2, phiTeor2 = helper.solve_schrodinger(V, dt, 1)

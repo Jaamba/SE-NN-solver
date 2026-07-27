@@ -1,6 +1,3 @@
-import numpy as np
-from scipy.optimize import minimize_scalar
-import matplotlib.pyplot as plt
 import torch.nn.functional as F
 import torch
 

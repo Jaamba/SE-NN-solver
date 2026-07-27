@@ -1,0 +1,24 @@
+### Network information
+
+# size of the set on which the network operates, which is [-A, A]
+A = 10  
+# Number of points on which the network operates
+N = 512
+# Number of fourier modes 
+MODES = 128
+# Number of parameters for each lhidden layer in the network
+HIDDEN_LAYERS = [1024, 2048, 1024]
+
+### Training information
+
+# Number of epochs used in training
+EPOCH = 30
+# Number of functions in a batch
+BATCH_SIZE = 512
+# Number of batches used in an epoch
+NUM_BATCHES = 1000
+
+# Note: if BATCH_SIZE or NUM_BATCHES does not match the data
+# saved in the file 'data/trainingset.pt', a new trainingset will
+# be automatically generated before training. This way only networktraining.py
+# will need to be run

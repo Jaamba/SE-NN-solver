@@ -1,29 +1,37 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import numpy as np
-import network.helper as helper
+import helper 
+import config
 
-# Different architecture intended for operating on fourier decomposition
-# of the input
+# Does the fourier decomposition on the input, applies a FFNN,
+# then does the inverse fourier decomposition
 class FourierNet(nn.Module):
-    def __init__(self, modes=256):
+    def __init__(self):
         super().__init__()
 
-        # Modes to do the decomposition on
-        self.modes = modes
+        # Imports information from the config file
+        self.modes = config.MODES
+        self.N = config.N
+        self.dt = 2*config.A / ( config.N - 1)
 
-        # Operates on both immaginary and real frequencies
-        self.net = nn.Sequential(
-            nn.Linear(2*modes, 256),
-            nn.ReLU(),
-            nn.Linear(256, 256),
-            nn.ReLU(),
-            nn.Linear(256, 2*modes)
+        # Builds the network from the config file
+        sizes = (
+            [2*config.MODES]
+            + config.HIDDEN_LAYERS
+            + [2*config.MODES]
         )
+        layers = []
+        for in_features, out_features in zip(sizes[:-1], sizes[1:]):
+            layers.append(nn.Linear(in_features, out_features))
+            layers.append(nn.ReLU())
+
+        # Removes the last activation function
+        layers.pop()
+
+        self.net = nn.Sequential(*layers)
 
         # Mask needed to impose phi = 0 at boundaries
-        mask = torch.ones(N)
+        mask = torch.ones(self.N)
         mask[0]=0
         mask[-1]=0
         self.register_buffer("boundary_mask", mask)
@@ -52,17 +60,17 @@ class FourierNet(nn.Module):
         F_new[:, :self.modes] = out
 
         # inverse FFT
-        phi = torch.fft.irfft(F_new, n=N)
+        phi = torch.fft.irfft(F_new, n=self.N)
 
         # Imposes phi = 0 at boundaries
         phi = phi * self.boundary_mask
 
         # Makes sure that the output function is normalized
-        integral = torch.sqrt(dt * torch.sum(phi**2, dim=1, keepdim=True))
+        integral = torch.sqrt(self.dt * torch.sum(phi**2, dim=1, keepdim=True))
         phi = phi / integral
 
         # Calculates E based on phi using E = <phi|H|phi>
-        Hphi = helper.hamiltonian(phi, x, dt)
-        E = dt * torch.sum(phi * Hphi, dim=1, keepdim=True)
+        Hphi = helper.hamiltonian(phi, x, self.dt)
+        E = self.dt * torch.sum(phi * Hphi, dim=1, keepdim=True)
 
         return E, phi, Hphi

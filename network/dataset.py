@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch.nn.functional as F
 import torch
-import network.helper as helper
-import network
+import helper
+import config
 
 # Generates a batch of random torch tensors representing continous functions.
 # n is the number of points of the function (discretization size).
@@ -101,6 +101,11 @@ def generate_training_set( filename, device="cuda", type="mixed"):
 
     print('Generating %s type dataset' % type)
 
+    # Imports data from config file
+    NUM_BATCHES = config.NUM_BATCHES
+    BATCH_SIZE = config.BATCH_SIZE
+    N = config.N
+
     # Generates an empy dataset
     dataset = torch.empty(
         NUM_BATCHES,
@@ -166,6 +171,12 @@ def generate_energy_set( input_filename, output_filename, device = "cuda", n = 0
     trainingset = torch.load( input_filename, map_location="cpu")
     print("Training set loaded correctly")
 
+    # Imports data from config file
+    NUM_BATCHES = config.NUM_BATCHES
+    BATCH_SIZE = config.BATCH_SIZE
+    N = config.N
+    A = config.A
+
     # Generates an empty dataset
     dataset = torch.empty(
         NUM_BATCHES,
@@ -182,7 +193,7 @@ def generate_energy_set( input_filename, output_filename, device = "cuda", n = 0
 
         # Founds the n-th energy level for the current batch
         with torch.no_grad():
-            E = helper.solve_energy(batch, network.dt, n)
+            E = helper.solve_energy(batch, 2*A/(N-1), n)
 
         # Loads 
         dataset[i] = E.cpu()
@@ -197,6 +208,12 @@ def generate_energy_set( input_filename, output_filename, device = "cuda", n = 0
 # plots the function at position (num_batch, num_fun) in a dataset
 def view_dataset(input_filename, index):
 
+    # Imports data from config file
+    NUM_BATCHES = config.NUM_BATCHES
+    BATCH_SIZE = config.BATCH_SIZE
+    N = config.N
+    A = config.A
+
     # Loads the training dataset
     print("Loading training set...")
     trainingset = torch.load( input_filename, map_location="cpu")
@@ -206,23 +223,27 @@ def view_dataset(input_filename, index):
         raise ValueError("index out of range")
 
     f = trainingset[index[0], index[1], :].detach().cpu().numpy()
-    t = np.linspace(-network.A, network.A, N)
+    t = np.linspace(-A, A, N)
 
     plt.plot(t, f)
     plt.show()
 
 # Shuffles all the functions inside a dataaset
 def shuffleDataset(dataset):
+
+    # Imports data from config file
+    NUM_BATCHES = config.NUM_BATCHES
+    BATCH_SIZE = config.BATCH_SIZE
+    N = config.N
+
+    # Shuffles
     dataset = dataset.reshape(-1, N)
     dataset = dataset[torch.randperm(dataset.size(0))]
     dataset = dataset.reshape(NUM_BATCHES, BATCH_SIZE, N)
 
-### DATASET INFO
-BATCH_SIZE = 512
-NUM_BATCHES = 1000
-N = network.N
-
-
+# Only run this if you need to generate a new dataset with the same
+# sizes as the already existing one. Otherwise only running networkTraining
+# will be sufficient
 if __name__ == "__main__":
 
     torch.backends.cuda.matmul.allow_tf32 = True
