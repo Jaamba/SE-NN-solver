@@ -5,7 +5,7 @@ A = 10
 # Number of points on which the network operates
 N = 512
 # Number of fourier modes 
-MODES = 128
+MODES = 256
 # Number of parameters for each lhidden layer in the network
 HIDDEN_LAYERS = [1024, 2048, 1024]
 

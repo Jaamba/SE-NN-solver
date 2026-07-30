@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch.nn.functional as F
 import torch
-import helper
-import config
+import network.helper as helper
+import network.config as config
 
 # Generates a batch of random torch tensors representing continous functions.
 # n is the number of points of the function (discretization size).

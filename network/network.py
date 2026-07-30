@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-import helper 
-import config
+import network.helper as helper 
+import network.config as config
 
 # Does the fourier decomposition on the input, applies a FFNN,
 # then does the inverse fourier decomposition
