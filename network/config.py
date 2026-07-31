@@ -17,15 +17,24 @@ EPOCH = 30
 BATCH_SIZE = 512
 # Number of batches used in an epoch
 NUM_BATCHES = 1000
+# Training batch type. alternatives are "poly", "smooth" or "well"
+TRAINING_TYPE = "mixed" 
 
 ### Testing information
 
 # Number of functions in a testing batch
 TESTING_BATCH_SIZE = 256
 # Number of batches used in testing
-TESTING_NUM_BATCHES = 300
+TESTING_NUM_BATCHES = 400
+# testing batch type. alternatives are "poly", "smooth" or "well"
+TESTING_TYPE = "mixed"
+# Wether to plot some of the graphs to compare teoric and model phi during testing
+PLOT_GRAPHS = True
+N_GRAPHS = 5 # number of graphs to plot
+# Wether to save testing results to a file
+SAVE_RESULTS = True 
 
 # Note: if BATCH_SIZE or NUM_BATCHES does not match the data
 # saved in the file 'data/trainingset.pt', a new trainingset will
 # be automatically generated before training. This way only networktraining.py
-# will need to be run
+# will need to be run. This is the same for the testset.

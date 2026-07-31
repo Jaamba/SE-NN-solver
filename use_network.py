@@ -46,32 +46,30 @@ if(input("Do you want to test the network? (y/N):")== 'y'):
     if(Path(testing_path).exists() == False):
         print("Testing set not found. A new one will be generated:")
 
-        type = input("Choose dataset type: (mixed/smooth/well/poly) ")
-        dataset.generate_testing_set(testing_path, device=device, type=type)
+        dataset.generate_testing_set(testing_path, device=device, type=config.TESTING_TYPE)
 
     # Loads the testing set
     print("Loading testingset...")
     testset = torch.load( testing_path, map_location="cpu")
     print("Testing set loaded correctly")
 
-    # obtains the data from the testset
-    func_set = testset["function"]
-    phi_set = testset["phi"]
-    E_set = testset["E"]
-
     # Regenerates the set if the file does not match the config file
-    if(func_set.shape != (config.TESTING_NUM_BATCHES, config.TESTING_BATCH_SIZE, config.N)
-        or phi_set.shape != (config.TESTING_NUM_BATCHES, config.TESTING_BATCH_SIZE, config.N)
-        or E_set.shape != (config.TESTING_NUM_BATCHES, config.TESTING_BATCH_SIZE, 1)):
+    if(testset["function"].shape != (config.TESTING_NUM_BATCHES, config.TESTING_BATCH_SIZE, config.N)
+        or testset["phi"].shape != (config.TESTING_NUM_BATCHES, config.TESTING_BATCH_SIZE, config.N)
+        or testset["E"].shape != (config.TESTING_NUM_BATCHES, config.TESTING_BATCH_SIZE, 1)):
 
         print("The testing set found in ", testing_path, " does not match the config file.")
         print("A new testing set will be generated:")
 
         # Creates and loads the new testing set
-        type = input("Choose dataset type: (mixed/smooth/well/poly) ")
-        dataset.generate_testing_set(testing_path, device=device, type=type)
+        dataset.generate_testing_set(testing_path, device=device, type=config.TESTING_TYPE)
         testset = torch.load( testing_path, map_location="cpu")
         print("New testset loaded correctly")
+
+    # obtains the data from the testset
+    func_set = testset["function"]
+    phi_set = testset["phi"]
+    E_set = testset["E"]
 
     # Begins testing
     func_score = 0
@@ -84,14 +82,41 @@ if(input("Do you want to test the network? (y/N):")== 'y'):
         E = E_set[i].to(device, non_blocking=True)
 
         # Calculates the model phi and E
-        m_phi, m_E, _ = model(f)
+        m_E, m_phi, _ = model(f)
 
         # Function score remains low if the model phi^2 is similar to phi^2
         func_score += torch.mean( (m_phi**2 - phi**2)**2 )
         E_score += torch.mean( (E - m_E)**2 )
 
         # Prints progress
-        print(f"\rTesting network: {i+1}/{config.TESTING_NUM_BATCHES} ({100*i/config.TESTING_NUM_BATCHES:.1f}%)", end="", flush=True)
+        print(f"\rTesting network: {i+1}/{config.TESTING_NUM_BATCHES} ({100*(i+1)/config.TESTING_NUM_BATCHES:.1f}%)", end="", flush=True)
+
+        # Makes a graph N_GRAPHS times
+        if(i % (config.TESTING_NUM_BATCHES // config.N_GRAPHS) == 0 and config.PLOT_GRAPHS):
+            # Choses which function to plot
+            k = torch.randint(0, config.TESTING_BATCH_SIZE, (1,))
+
+            # takes the functions to plot from the batch
+            f_plot = f[k].squeeze().detach().cpu().numpy()
+            phi_plot = (phi[k]**2).squeeze().detach().cpu().numpy()
+            m_phi_plot = (m_phi[k]**2).squeeze().detach().cpu().numpy()
+
+            t = np.linspace(-config.A, config.A, config.N)
+
+            # Plots the graph
+            plt.plot(t, f_plot, label="V")
+            plt.plot(t, phi_plot, label="Phi^2 (fd)")
+            plt.plot(t, m_phi_plot, label="Phi^2 (Model)")
+            plt.legend()
+
+            # Prints energy info
+            print()
+            print(f"The plotted graph has fd energy {E[k].squeeze().item():.6f}, while model energy is {m_E[k].squeeze().item():.6f}")
+            print("Close the graph to continue testing")
+
+            plt.show()
+    print()
+
 
     # Takes the average between all batches
     func_score /= config.TESTING_NUM_BATCHES
