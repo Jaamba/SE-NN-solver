@@ -94,35 +94,26 @@ def random_gaussian_wells( M, N, max_wells=4, well_steep = 2, device="cuda"):
 
     return V
 
-# Generates and saves a dataset of functions for training. This is a tensor of
-# shape (num_batches, batch_size, N)
-# Types of datasets can be: "mixed", "smooth", "well", "poly"
-def generate_training_set( filename, device="cuda", type="mixed"):
-
-    print('Generating %s type dataset' % type)
-
-    # Imports data from config file
-    NUM_BATCHES = config.NUM_BATCHES
-    BATCH_SIZE = config.BATCH_SIZE
-    N = config.N
+# Generates and saves a dataset
+def generate_set( num_batches, batch_size, N, device="cuda", type="mixed"):
 
     # Generates an empy dataset
     dataset = torch.empty(
-        NUM_BATCHES,
-        BATCH_SIZE,
+        num_batches,
+        batch_size,
         N,
         dtype=torch.float32
     )
 
-    for b in range(NUM_BATCHES):
+    for b in range(num_batches):
 
         # Generates three batches of different type
-        poly   = random_polynomials(BATCH_SIZE, N, device=device)
-        smooth = random_smooth(BATCH_SIZE, N, device=device, sigma=32)
-        wells  = random_gaussian_wells(BATCH_SIZE, N, device=device, max_wells=2)
+        poly   = random_polynomials(batch_size, N, device=device)
+        smooth = random_smooth(batch_size, N, device=device, sigma=32)
+        wells  = random_gaussian_wells(batch_size, N, device=device, max_wells=2)
 
         # Prints current progress
-        print(f"\rGenerating dataset: {b+1}/{NUM_BATCHES} ({100*b/NUM_BATCHES:.1f}%)", end="", flush=True)
+        print(f"\rGenerating dataset: {b+1}/{num_batches} ({100*b/num_batches:.1f}%)", end="", flush=True)
 
         # Creates the dataset for non mixed types
         if(type == "well"):
@@ -139,10 +130,10 @@ def generate_training_set( filename, device="cuda", type="mixed"):
 
         # Creates the dataset for mixed types
         # Generates a batch three random coefficients between 0 and 1
-        weights = torch.rand(BATCH_SIZE, 3, device=device)
+        weights = torch.rand(batch_size, 3, device=device)
 
         # Decides if a generator is used
-        active = (torch.rand(BATCH_SIZE, 3, device=device) < 0.7).float()
+        active = (torch.rand(batch_size, 3, device=device) < 0.7).float()
 
         # Avoids all being 0
         inactive = active.sum(dim=1) == 0 # boolean mask to find inactive spots
@@ -159,8 +150,83 @@ def generate_training_set( filename, device="cuda", type="mixed"):
         # Updates the dataset with the current batch
         dataset[b] = batch.cpu()
 
+    return dataset
+
+# Generates and saves a dataset of functions for training. This is a tensor of
+# shape (num_batches, batch_size, N)
+# Types of datasets can be: "mixed", "smooth", "well", "poly"
+def generate_training_set( filename, device="cuda", type="mixed"):
+
+    print('Generating %s type dataset' % type)
+
+    # Imports data from config file
+    NUM_BATCHES = config.NUM_BATCHES
+    BATCH_SIZE = config.BATCH_SIZE
+    N = config.N
+
+    # Generates the set
+    dataset = generate_set(NUM_BATCHES, BATCH_SIZE, N, type=type)
+
+    # Saves the set
     torch.save(dataset, filename)
     print(f"\nDataset saved in '{filename}'")
+
+# Generates and saves a dataset of functions with respective energies and solved
+# shrodinger equation in a tensor of shape. This will save a dictionary containing
+# the three tensors
+def generate_testing_set( filename, device="cuda", type="mixed"):
+
+    print('Generating %s type testing set' % type)
+
+    # Imports data from config file
+    TESTING_NUM_BATCHES = config.TESTING_NUM_BATCHES
+    TESTING_BATCH_SIZE = config.TESTING_BATCH_SIZE
+    A = config.A
+    N = config.N
+
+    # Generates the functions set
+    print("Generating functions set...")
+    function_set = generate_set( TESTING_NUM_BATCHES, TESTING_BATCH_SIZE, N, device=device, type=type)
+
+    # Creates the solved sets
+    energy_set = torch.empty(
+        TESTING_NUM_BATCHES,
+        TESTING_BATCH_SIZE,
+        1,
+        dtype=torch.float32
+    )
+    solved_set = torch.empty(
+        TESTING_NUM_BATCHES,
+        TESTING_BATCH_SIZE,
+        N,
+        dtype=torch.float32
+    )
+
+    # For each function in the set solves the shrodinger equation
+    print("Generating testing set...")
+    for i, batch in enumerate(function_set):
+
+        # Moves the batch to the used device
+        batch = batch.to(device, non_blocking=True)
+
+        # Founds the n-th energy level for the current batch
+        with torch.no_grad():
+            E, phi = helper.solve_schrodinger(batch, 2*A/(N-1), 0)
+
+        # Loads 
+        energy_set[i] = E.cpu()
+        solved_set[i] = phi.cpu()
+
+        # Prints current progress
+        print(f"\rGenerating testing set: {i+1}/{TESTING_NUM_BATCHES} ({100*i/TESTING_NUM_BATCHES:.1f}%)", end="", flush=True)
+
+    # Saves everything in a dictionary
+    torch.save({
+        "function": function_set,
+        "phi": solved_set,
+        "E": energy_set
+    }, filename)
+    print("Testing set saved correctly")
 
 # Generates a dataset containing the n-th energies for the potentials
 # stored in input_filename
