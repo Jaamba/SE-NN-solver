@@ -2,17 +2,23 @@ import torch
 from network import config
 from network import network
 from network import helper
+from network import dataset
 from network import training
 from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
+# Uses the GPU if available
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("Using device: " + str(device))
+
 # Finds the root folder and checkpoint path 
 ROOT = Path(__file__).resolve().parent
 statedict_path = ROOT / "network" / "data" / "checkpoint.pth"
+testing_path = ROOT / "network" / "data" / "testingset.pt"
 
-# Loads the model from the file
-model = network.FourierNet()
+# Creates the model
+model = network.FourierNet().to(device)
 
 # Asks to train the network
 if(input("Do you want to train the network? (y/N):") == 'y'):
@@ -24,38 +30,71 @@ if(input("Do you want to train the network? (y/N):") == 'y'):
     training.trainNetwork(showInfo)
     print("Training done successfully.")
 
+# Loads the network if it exists 
+if(Path(statedict_path).exists()):
+    print("Loading model...")
+    state_dict = torch.load(statedict_path)
+    model.load_state_dict(state_dict)
+    model.eval()
+    print("Model loaded correctly")
+else:
+    print("State dict not found. The model parameters will be randomly assigned")
 
-print("Loading model...")
-state_dict = torch.load(statedict_path)
-model.load_state_dict(state_dict)
-model.eval()
-print("Model loaded correctly")
+if(input("Do you want to test the network? (y/N):")== 'y'):
 
-# Loads the model info from the config file
-N = config.N
-A = config.A
-dt = 2*A/(N-1)
+    # Generates the testing set if it doesn't exist
+    if(Path(testing_path).exists() == False):
+        print("Testing set not found. A new one will be generated:")
 
-# Tests the model with a potential well
-V = torch.empty(N)
-V[:] = 0
-V[int(40*N/100):int(60*N/100)] = -1
-V = V.unsqueeze(0)
-#V = dataset.random_gaussian_wells(1, N, max_wells=2, device="cpu")
-E, phi, _ = model(V)
+        type = input("Choose dataset type: (mixed/smooth/well/poly) ")
+        dataset.generate_testing_set(testing_path, device=device, type=type)
 
-# Gets the teoric values of E and phi
-Eteor, phiTeor = helper.solve_schrodinger(V, dt, 0)
-Eteor2, phiTeor2 = helper.solve_schrodinger(V, dt, 1)
+    # Loads the testing set
+    print("Loading testingset...")
+    testset = torch.load( testing_path, map_location="cpu")
+    print("Testing set loaded correctly")
 
-# Plots the results
-t = np.linspace(-A, A, N)
-plt.plot(t, V.squeeze().cpu().detach().numpy(), label="input")
-plt.plot(t, phi.squeeze().cpu().detach().numpy(), label="model")
-plt.plot(t, phiTeor[0].squeeze().cpu().detach().numpy(), label="teor")
-plt.plot(t, phiTeor2[0].squeeze().cpu().detach().numpy(), label="teor2")
-print("Model energy: " + str(E.item()))
-print("Teoric energy: " + str(Eteor[0].item()))
-print("Teoric energy 2: " + str(Eteor2[0].item()))
-plt.legend()
-plt.show()
+    # obtains the data from the testset
+    func_set = testset["function"]
+    phi_set = testset["phi"]
+    E_set = testset["E"]
+
+    # Regenerates the set if the file does not match the config file
+    if(func_set.shape != (config.TESTING_NUM_BATCHES, config.TESTING_BATCH_SIZE, config.N)
+        or phi_set.shape != (config.TESTING_NUM_BATCHES, config.TESTING_BATCH_SIZE, config.N)
+        or E_set.shape != (config.TESTING_NUM_BATCHES, config.TESTING_BATCH_SIZE, 1)):
+
+        print("The testing set found in ", testing_path, " does not match the config file.")
+        print("A new testing set will be generated:")
+
+        # Creates and loads the new testing set
+        type = input("Choose dataset type: (mixed/smooth/well/poly) ")
+        dataset.generate_testing_set(testing_path, device=device, type=type)
+        testset = torch.load( testing_path, map_location="cpu")
+        print("New testset loaded correctly")
+
+    # Begins testing
+    func_score = 0
+    E_score = 0
+    for i in range(config.TESTING_NUM_BATCHES):
+
+        # Takes the current batch
+        f = func_set[i].to(device, non_blocking=True)
+        phi = phi_set[i].to(device, non_blocking=True)
+        E = E_set[i].to(device, non_blocking=True)
+
+        # Calculates the model phi and E
+        m_phi, m_E, _ = model(f)
+
+        # Function score remains low if the model phi^2 is similar to phi^2
+        func_score += torch.mean( (m_phi**2 - phi**2)**2 )
+        E_score += torch.mean( (E - m_E)**2 )
+
+        # Prints progress
+        print(f"\rTesting network: {i+1}/{config.TESTING_NUM_BATCHES} ({100*i/config.TESTING_NUM_BATCHES:.1f}%)", end="", flush=True)
+
+    # Takes the average between all batches
+    func_score /= config.TESTING_NUM_BATCHES
+    E_score /= config.TESTING_NUM_BATCHES
+
+    print(f"Testing done successfully. scored: func_score: {func_score}, E_score: {E_score}")
